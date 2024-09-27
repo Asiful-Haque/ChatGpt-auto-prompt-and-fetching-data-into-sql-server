@@ -3,9 +3,9 @@ function runCode() {
         console.log('Started fetching word data...');
 
         // Define the URLs as variables
-        const getWordUrl = "https://localhost/chrome/afrikaans_for_local_machine/getAfrikaans.php";
-        const saveDataUrl = "https://localhost/chrome/afrikaans_for_local_machine/saveAfrikaans.php";
-        const updateFailedDataUrl = "https://localhost/chrome/afrikaans_for_local_machine/update_failed_chat_gpt_data.php";
+        const getWordUrl = "https://chat.mcqstudy.com/chatgpt/getAfrikaans.php";
+        const saveDataUrl = "https://chat.mcqstudy.com/chatgpt/saveAfrikaans.php";
+        const updateFailedDataUrl = "https://chat.mcqstudy.com/chatgpt/update_failed_chat_gpt_data.php";
 
         // Fetch word data from the server after 3 seconds
         setTimeout(() => {
