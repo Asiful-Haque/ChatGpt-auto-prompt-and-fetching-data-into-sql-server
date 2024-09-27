@@ -1,0 +1,17 @@
+{
+  "name": "Chat-gpt reader",
+  "action": {},
+  "manifest_version": 3,
+  "version": "0.1",
+  "description": "It reads chat-gpt response",
+  "permissions": [
+    "activeTab", "background", "tabs", "http://*/*", "https://*/*","<all_urls>", "scripting","notifications","*"
+
+  ],
+  "host_permissions": [
+    "https://*/*","http://*/*","https://translate.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
