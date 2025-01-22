@@ -175,3 +175,241 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------Updated------------------------------------for new script with json value-------------------------------
+    function runCode() {
+  if (window.location.href === "https://chatgpt.com/") {
+    console.log("Started processing words...");
+
+    const getWordUrl =
+      "https://chat.mcqstudy.com/objectResponse/getAfrikaans.php";
+    const saveDataUrl =
+      "https://chat.mcqstudy.com/objectResponse/saveAfrikaans.php";
+
+    let currentWordId = null; // Track the current word ID
+    let processing = false; // Prevent overlapping word processing
+    let responseProcessed = false; // Flag to indicate response processing status
+    let responseTimeout = null; // Timeout to stop processing if no response is found
+    let processedAreas = new Set(); // Track processed response areas
+
+    function fetchWord() {
+      if (processing) {
+        console.log("Already processing a word. Waiting for completion...");
+        return;
+      }
+
+      processing = true; // Set processing to true to prevent duplicate fetches
+      console.log("Fetching new word...");
+      responseProcessed = false; // Reset response processing flag
+
+      fetch(getWordUrl, { method: "POST" })
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.id) {
+            currentWordId = result.id;
+            console.log("Fetched word:", result);
+            submitToPrompt(result);
+          } else {
+            console.error("No word data received. Stopping process.");
+            resetProcessing(); // Stop processing if no word is fetched
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching word:", error);
+          resetProcessing(); // Reset processing flag on error
+        });
+    }
+
+    function submitToPrompt(result) {
+      console.log("Submitting word to prompt...");
+
+      function waitForPromptTextArea() {
+        const promptTextArea = document.querySelector("#prompt-textarea");
+        if (promptTextArea) {
+          console.log("Prompt textarea found.");
+          promptTextArea.textContent = `Convert the following List_Items(only List_Items) into Bengali while keeping the format intact with key named by Entries:  
+          "${decodeURIComponent(
+            result.meaning
+          )}". Add the ID=${result.id} at the beginning to the final output and reply as an object.
+          That means the final output will have to keys like ID and Entries. Entries is an array of objects with "Bold_text" and "List_Items" array.
+          with out this format you are not allwoed to submit the answer.always you have to give the full response.`;
+
+          const inputEvent = new Event("input", { bubbles: true });
+          promptTextArea.dispatchEvent(inputEvent);
+          waitForSendButton();
+        } else {
+          console.log("Prompt textarea not found, retrying...");
+          requestAnimationFrame(waitForPromptTextArea);
+        }
+      }
+
+      function waitForSendButton() {
+        const sendButton = document.querySelector(
+          '[data-testid="send-button"]'
+        );
+        if (sendButton) {
+          if (!sendButton.disabled) {
+            sendButton.click();
+            console.log("Send button clicked.");
+            monitorResponse(); // Start monitoring the response after the word is submitted
+          } else {
+            console.log("Send button is disabled, retrying...");
+            requestAnimationFrame(waitForSendButton);
+          }
+        } else {
+          console.log("Send button not found, retrying...");
+          requestAnimationFrame(waitForSendButton);
+        }
+      }
+
+      waitForPromptTextArea();
+    }
+
+    function monitorResponse() {
+      console.log("Monitoring response areas...");
+
+      const responseAreas = document.querySelectorAll(".markdown");
+
+      if (responseAreas.length > 0) {
+        const latestResponseArea = responseAreas[responseAreas.length - 1];
+
+        if (
+          !processedAreas.has(latestResponseArea) &&
+          !latestResponseArea.classList.contains("result-streaming")
+        ) {
+          console.log("New response area located. Observing...");
+          processedAreas.add(latestResponseArea); // Mark area as processed
+          observeResponseArea(latestResponseArea);
+        } else {
+          console.log(
+            "Response area already processed or still streaming. Retrying..."
+          );
+          requestAnimationFrame(monitorResponse);
+        }
+      } else {
+        console.log("No response area found. Retrying...");
+        requestAnimationFrame(monitorResponse);
+      }
+    }
+
+    function observeResponseArea(area) {
+      console.log("Monitoring response for:", area);
+
+      const intervalId = setInterval(() => {
+        const codeBlock = area.querySelector('code[class~="language-json"]');
+
+        if (codeBlock && !responseProcessed) {
+          console.log("Found code block:", codeBlock);
+
+          try {
+            const jsonContent = JSON.parse(codeBlock.innerText.trim());
+            console.log("Extracted JSON:", jsonContent);
+            saveResponse(jsonContent);
+          } catch (error) {
+            console.error("Error parsing JSON:", error);
+            saveResponse(codeBlock.innerText.trim()); // Save raw string if JSON parsing fails
+          }
+
+          responseProcessed = true; // Mark as processed
+          clearInterval(intervalId);
+          clearTimeout(responseTimeout);
+        }
+      }, 500);
+
+      responseTimeout = setTimeout(() => {
+        if (!responseProcessed) {
+          console.error("Response not found. Stopping further processing.");
+          clearInterval(intervalId);
+          resetProcessing();
+        }
+      }, 10000);
+    }
+
+    function saveResponse(responseData) {
+      console.log("Saving response...");
+
+      const params = new URLSearchParams({
+        ID: responseData.ID,
+        gptData: JSON.stringify(responseData),
+      });
+      console.log("Saving response with dataaaaaaaaaaaaaaaaa:", params.toString());
+
+      fetch(saveDataUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params,
+      })
+        .then((response) => {
+          if (response.ok) {
+            console.log("Response saved successfully.");
+            resetProcessing(); // Reset and call the next word
+            setTimeout(fetchWord, 5000); // Wait for 5 seconds before fetching the next word
+          } else {
+            response.json().then((data) => {
+              if (data.error === "Duplicate urdu_meaning found") {
+                console.error("Duplicate found. Stopping the process.");
+                resetProcessing();
+                stopProcess();
+              } else {
+                console.error("Failed to save response.");
+                resetProcessing();
+              }
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error saving response:", error);
+          resetProcessing();
+        });
+    }
+
+    function stopProcess() {
+      console.log("Stopping the entire process...");
+      processing = false;
+      clearTimeout(responseTimeout);
+      currentWordId = null;
+    }
+
+    function resetProcessing() {
+      console.log("Resetting processing...");
+      clearTimeout(responseTimeout);
+      currentWordId = null;
+      processing = false;
+      responseProcessed = false;
+    }
+
+    fetchWord();
+  }
+}
+
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+  if (changeInfo.status === "complete" && !tab.url.includes("chrome://")) {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: runCode,
+    });
+  }
+});
