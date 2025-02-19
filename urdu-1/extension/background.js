@@ -3,15 +3,53 @@ function runCode() {
     console.log("Started processing words...");
 
     const getWordUrl =
-      "https://chat.mcqstudy.com/urdu-1/getAfrikaans.php";
+      "https://chat.mcqstudy.com/HSTT/getAfrikaans.php";
     const saveDataUrl =
-      "https://chat.mcqstudy.com/urdu-1/saveAfrikaans.php";
+      "https://chat.mcqstudy.com/HSTT/saveAfrikaans.php";
 
-    let currentWordId = null; // Track the current word ID
-    let processing = false; // Prevent overlapping word processing
-    let responseProcessed = false; // Flag to indicate response processing status
-    let responseTimeout = null; // Timeout to stop processing if no response is found
-    let processedAreas = new Set(); // Track processed response areas
+      let currentWordId = null;
+      let processing = false;
+      let responseProcessed = false;
+      let responseTimeout = null;
+      let processedAreas = new Set();
+      let countdown = 1800; // 20 minutes countdown in seconds
+      let responseStarted = false; // Track if response generation has started
+      let urlChecked = false;
+
+      function startCountdown() {
+        const interval = setInterval(() => {
+          if (countdown > 0) {
+            console.log(`⏳ Reloading in ${countdown} seconds...`);
+            countdown--;
+          } else {
+            clearInterval(interval);
+            console.log("🔄 Reloading to https://chatgpt.com/...");
+            window.location.href = "https://chatgpt.com/"; // Ensure it always reloads to the homepage
+          }
+        }, 1000);
+      }
+      
+
+    function checkConversationUrl() {
+      if (urlChecked) return;
+      setTimeout(() => {
+        urlChecked = true;
+        if (!responseStarted) {
+          console.log("⌛ Waiting for response to start before checking URL...");
+          return;
+        }
+
+        if (window.location.href === "https://chatgpt.com/") {
+          console.warn("⚠️ Response started, but URL did not change! Reloading...");
+          window.location.href = "https://chatgpt.com/";
+        } else if (window.location.href.startsWith("https://chatgpt.com/c/")) {
+          console.log("✅ Conversation started successfully:", window.location.href);
+        } else {
+          console.warn("⚠️ Unexpected URL format! Reloading...");
+          window.location.reload();
+        }
+      }, 5000);
+    }
 
     function fetchWord() {
       if (processing) {
@@ -48,13 +86,54 @@ function runCode() {
         const promptTextArea = document.querySelector("#prompt-textarea");
         if (promptTextArea) {
           console.log("Prompt textarea found.");
-          promptTextArea.textContent = `Convert the following List_Items(only List_Items) into Urdu while keeping the format intact with key named by Entries:  
-          "${decodeURIComponent(
-            result.meaning
-          )}". Add the ID=${result.id} at the beginning to the final output and reply as an object(always).
-          That means the final output will have to keys like ID and Entries in the code format.I mean where you give response as code. 
-          Entries is an array of objects with "Bold_text" and "List_Items" array. In Bold_text part you have to give in English always and List_Items in Urdu.
-          with out this format you are not allwoed to submit the answer.always you have to give the full response.`;
+          promptTextArea.textContent = `  
+          "${decodeURIComponent(result.meaning)}".
+          Convert the following List_Items(only List_Items) into Hindi,Sinhali,Tamil,Telegu and Bold_text in English while keeping the format intact like:
+          {
+          "ID": ,
+          "languages":[
+          {
+          "language":"Hindi",
+          "Entries":[
+              {"Bold_text":"",
+                "List_Items":[]},
+              {"Bold_text":"",
+                "List_Items":[]},.....
+                    ]
+          },
+            {
+          "language":"Sinhali",
+          "Entries":[
+              {"Bold_text":"",
+                "List_Items":[]},
+              {"Bold_text":"",
+                "List_Items":[]},.....
+                    ]
+          },
+            {
+          "language":"Tamil",
+          "Entries":[
+              {"Bold_text":"",
+                "List_Items":[]},
+              {"Bold_text":"",
+                "List_Items":[]},.....
+                    ]
+          },
+            {
+          "language":"Telegu",
+          "Entries":[
+              {"Bold_text":"",
+                "List_Items":[]},
+              {"Bold_text":"",
+                "List_Items":[]},.....
+                    ]
+          }
+          ]
+          }
+          ID mentioned above will be,
+          ID=${
+            result.id
+          }.Remember, this ID is so important.You always need to give output with correct ID. with out this format you are not allowed to submit the answer.always you have to give the full response.And dont give any extra line after and before the code box remember`;
 
           const inputEvent = new Event("input", { bubbles: true });
           promptTextArea.dispatchEvent(inputEvent);
@@ -93,16 +172,18 @@ function runCode() {
       const responseAreas = document.querySelectorAll(".markdown");
 
       if (responseAreas.length > 0) {
+        responseStarted = true;
+        checkConversationUrl();
         const latestResponseArea = responseAreas[responseAreas.length - 1];
         console.log("Latest response area is ", latestResponseArea);
 
         if (
           !processedAreas.has(latestResponseArea) &&
-          (!latestResponseArea.classList.contains("result-thinking"))
+          !latestResponseArea.classList.contains("result-thinking")
         ) {
           console.log("New response area located. Observing...");
           processedAreas.add(latestResponseArea); // Mark area as processed
-          console.log("sending for observation",latestResponseArea);
+          console.log("sending for observation", latestResponseArea);
           observeResponseArea(latestResponseArea);
         } else {
           console.log(
@@ -116,54 +197,20 @@ function runCode() {
       }
     }
 
-    // function observeResponseArea(area) {
-    //   console.log("Monitoring response for:", area);
-
-    //   const intervalId = setInterval(() => {
-    //     const codeBlock = area.querySelector('code[class~="language-json"]');
-
-    //     if (codeBlock && !responseProcessed) {
-    //       console.log("Found code block:", codeBlock);
-
-    //       try {
-    //         const jsonContent = JSON.parse(codeBlock.innerText.trim());
-    //         console.log("Extracted JSON:", jsonContent);
-    //         saveResponse(jsonContent);
-    //       } catch (error) {
-    //         console.error("Error parsing JSON:", error);
-    //         saveResponse(codeBlock.innerText.trim()); // Save raw string if JSON parsing fails
-    //       }
-
-    //       responseProcessed = true; // Mark as processed
-    //       clearInterval(intervalId);
-    //       clearTimeout(responseTimeout);
-    //     }
-    //   }, 10000);
-
-    //   responseTimeout = setTimeout(() => {
-    //     if (!responseProcessed) {
-    //       console.error("Response not found. Stopping further processing.");
-    //       clearInterval(intervalId);
-    //       resetProcessing();
-    //     }
-    //   }, 10000);
-    // }
-
-
     function observeResponseArea(area) {
       console.log("🔍 Monitoring response for:", area);
-    
+
       let lastValidJson = ""; // Store last valid JSON if parsing fails
-    
+
       const intervalId = setInterval(() => {
         const codeBlock = area.querySelector('code[class~="language-json"]');
-    
+
         if (codeBlock && !responseProcessed) {
           const responseText = codeBlock.innerText.trim();
-    
+
           if (isBalancedJson(responseText)) {
             console.log("✅ JSON brackets are balanced. Checking validity...");
-    
+
             try {
               const jsonContent = JSON.parse(responseText);
               console.log("✅ Successfully Parsed JSON:", jsonContent);
@@ -172,7 +219,9 @@ function runCode() {
               clearInterval(intervalId);
               clearTimeout(responseTimeout);
             } catch (error) {
-              console.warn("⏳ JSON detected but not fully received yet. Waiting...");
+              console.warn(
+                "⏳ JSON detected but not fully received yet. Waiting..."
+              );
               lastValidJson = responseText; // Store last best version
             }
           } else {
@@ -180,10 +229,12 @@ function runCode() {
           }
         }
       }, 500); // Check every 500ms
-    
+
       responseTimeout = setTimeout(() => {
         if (!responseProcessed) {
-          console.warn("⚠️ JSON never fully completed. Saving best available version...");
+          console.warn(
+            "⚠️ JSON never fully completed. Saving best available version..."
+          );
           if (lastValidJson) {
             saveResponse(lastValidJson);
           } else {
@@ -192,117 +243,117 @@ function runCode() {
           clearInterval(intervalId);
           resetProcessing();
         }
-      }, 60000); // Fail-safe timeout of 60 seconds (prevents infinite loops)
+      }, 600000); // Fail-safe timeout of 60 seconds (prevents infinite loops)
     }
-    
+
     // ✅ **Valid Parenthesis Algorithm with JSON Handling (Runs Until JSON is Complete)**
     function isBalancedJson(jsonString) {
       let stack = [];
       let inString = false;
       let escapeNext = false;
-    
+
       for (let char of jsonString) {
         if (char === '"' && !escapeNext) {
           inString = !inString; // Toggle in-string mode
         } else if (!inString) {
-          if (char === '{' || char === '[') {
+          if (char === "{" || char === "[") {
             stack.push(char);
-          } else if (char === '}' || char === ']') {
+          } else if (char === "}" || char === "]") {
             if (stack.length === 0) return false; // Extra closing bracket
             let last = stack.pop();
-            if ((char === '}' && last !== '{') || (char === ']' && last !== '[')) {
+            if (
+              (char === "}" && last !== "{") ||
+              (char === "]" && last !== "[")
+            ) {
               return false; // Mismatched brackets
             }
           }
         }
-        escapeNext = char === '\\' && !escapeNext; // Handle escaped characters
+        escapeNext = char === "\\" && !escapeNext; // Handle escaped characters
       }
-    
+
       return stack.length === 0 && !inString; // True if all brackets match and no open strings
     }
-    
-    
+
     // ✅ **Valid Parenthesis Algorithm with JSON Handling**
     function isBalancedJson(jsonString) {
       let stack = [];
       let inString = false;
       let escapeNext = false;
-    
+
       for (let char of jsonString) {
         if (char === '"' && !escapeNext) {
           inString = !inString; // Toggle in-string mode
         } else if (!inString) {
-          if (char === '{' || char === '[') {
+          if (char === "{" || char === "[") {
             stack.push(char);
-          } else if (char === '}' || char === ']') {
+          } else if (char === "}" || char === "]") {
             if (stack.length === 0) return false; // Extra closing bracket
             let last = stack.pop();
-            if ((char === '}' && last !== '{') || (char === ']' && last !== '[')) {
+            if (
+              (char === "}" && last !== "{") ||
+              (char === "]" && last !== "[")
+            ) {
               return false; // Mismatched brackets
             }
           }
         }
-        escapeNext = char === '\\' && !escapeNext; // Handle escaped characters
+        escapeNext = char === "\\" && !escapeNext; // Handle escaped characters
       }
-    
+
       return stack.length === 0 && !inString; // True if all brackets match and no open strings
     }
-    
-    
+
     // ✅ **Valid Parenthesis Algorithm** to check if JSON response is complete
     function isValidJson(jsonString) {
       let stack = [];
-      
+
       for (let char of jsonString) {
-        if (char === '{') {
-          stack.push('{');
-        } else if (char === '}') {
+        if (char === "{") {
+          stack.push("{");
+        } else if (char === "}") {
           if (stack.length === 0) return false; // Extra closing bracket
           stack.pop();
         }
       }
-    
+
       return stack.length === 0; // Returns true only if all brackets are matched
     }
-    
 
     function saveResponse(responseData) {
-      console.log("Saving response...");
-
-      const params = new URLSearchParams({
-        ID: responseData.ID,
-        gptData: JSON.stringify(responseData),
-      });
-      console.log("Saving response with dataaaaaaaaaaaaaaaaa:", params.toString());
-
+      console.log("📤 Sending response data for saving...");
+  
       fetch(saveDataUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+              ID: responseData.ID,
+              gptData: responseData
+          })
       })
-        .then((response) => {
-          if (response.ok) {
-            console.log("Response saved successfully.");
-            resetProcessing(); // Reset and call the next word
-            setTimeout(fetchWord, 10000); // Wait for 5 seconds before fetching the next word
+      .then(response => response.json())
+      .then(data => {
+          if (data.success) {
+              console.log("✅ Response saved successfully.");
+              resetProcessing();
+              setTimeout(fetchWord, 3000); // Fetch the next word after 10 seconds
           } else {
-            response.json().then((data) => {
-              if (data.error === "Duplicate urdu_meaning found") {
-                console.error("Duplicate found. Stopping the process.");
-                resetProcessing();
-                stopProcess();
+              if (data.error === "Duplicate meaning found") {
+                  console.error("⚠️ Duplicate found. Stopping the process.");
+                  resetProcessing();
+                  stopProcess(); // Stop further processing if a duplicate is found
               } else {
-                console.error("Failed to save response.");
-                resetProcessing();
+                  console.error("❌ Failed to save response:", data.error);
+                  resetProcessing();
               }
-            });
           }
-        })
-        .catch((error) => {
-          console.error("Error saving response:", error);
+      })
+      .catch(error => {
+          console.error("❌ Error saving response:", error);
           resetProcessing();
-        });
-    }
+      });
+  }
+  
 
     function stopProcess() {
       console.log("Stopping the entire process...");
@@ -319,6 +370,7 @@ function runCode() {
       responseProcessed = false;
     }
 
+    startCountdown();
     fetchWord();
   }
 }
@@ -331,3 +383,9 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     });
   }
 });
+
+
+
+
+
+
